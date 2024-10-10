@@ -2,6 +2,7 @@ from textwrap import dedent
 from openai import OpenAI
 from dotenv import load_dotenv
 from vector_database import VectorDB
+from reranker import Reranker
 from typing import Literal
 import json
 
@@ -34,9 +35,10 @@ PROMPT_TEMPLATE = """
 
 
 class Engine:
-    def __init__(self, vector_db: VectorDB):
+    def __init__(self, vector_db: VectorDB, reranker: Reranker = None):
         self.client = OpenAI() 
         self.vector_db = vector_db
+        self.reranker = reranker
 
     def retrieve(
         self, 
@@ -58,10 +60,13 @@ class Engine:
         self, 
         question: str, 
         level: Literal["beginner", "intermediate", "expert"] = "beginner",
-        max_words: int = 100
-    ):
+        max_words: int = 100, 
+        rerank_n: int = None,
+    ) -> str:
         documents, metric_avg = self.retrieve(question=question)
         print(f"Metrics: {metric_avg}")
+        if rerank_n and self.reranker is not None:
+            documents = self.reranker.rerank(question=question, documents=documents, top_n=rerank_n)
 
         prompt = dedent(PROMPT_TEMPLATE).format(
             level=level,
