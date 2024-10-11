@@ -59,15 +59,21 @@ class Engine:
         top_k: int = 10, 
         search_type: Literal["similarity", "keyword", "hybrid"] = "similarity"
     ):
-        start_date = datetime.strptime(query.date_range.start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc) if query.date_range.start_date else None
-        end_date = datetime.strptime(query.date_range.end, "%Y-%m-%d").replace(tzinfo=timezone.utc) if query.date_range.end else None
+        start_date = None
+        end_date = None
+        if query.date_range:
+            start_date = datetime.strptime(query.date_range.start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc) if query.date_range.start_date else None
+            end_date = datetime.strptime(query.date_range.end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc) if query.date_range.end_date else None
+        
         categories = [cat.value for cat in query.categories] if query.categories else None
 
         filters_list = []
         if query.authors:
-            filters_list.append(Filter.by_property("authors").equal(query.authors))
+            for auth in query.authors:
+                filters_list.append(Filter.by_property("authors").equal(auth))
         if query.categories:
-            filters_list.append(Filter.by_property("categories").equal(categories))
+            for cat in categories:
+                filters_list.append(Filter.by_property("categories").equal(cat))
         if start_date:
             filters_list.append(Filter.by_property("date").greater_than(start_date))
         if end_date:
@@ -107,16 +113,16 @@ class Engine:
         question: str, 
         level: Literal["beginner", "intermediate", "expert"] = "beginner",
         max_words: int = 100, 
-        rerank_n: int = None,
+        top_n: int = None,
     ) -> str:
         
         transformed_query = self.query_transform(question)
-        print(f"Transformed Query: {transformed_query}")
+        print(f"\nTransformed Query: {transformed_query}\n")
 
         documents, metric_avg = self.retrieve(query=transformed_query)
-        print(f"Metrics: {metric_avg}")
-        if rerank_n and self.reranker is not None:
-            documents = self.reranker.rerank(question=question, documents=documents, top_n=rerank_n)
+        print(f"Metrics: {metric_avg}\n")
+        if top_n and self.reranker is not None:
+            documents = self.reranker.rerank(question=question, documents=documents, top_n=top_n)
 
         prompt = dedent(PROMPT_TEMPLATE).format(
             level=level,

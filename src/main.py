@@ -9,5 +9,5 @@ if __name__ == "__main__":
     engine = Engine(vector_db=vector_db, reranker=reranker)
 
     question = "How do GPT models compare to BERT models for classification tasks?"
-    response = engine.query(question=question, level="intermediate", rerank_n=5)
+    response = engine.query(question=question, level="intermediate", top_n=5, max_words=200)
     print(response)

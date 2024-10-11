@@ -28,6 +28,6 @@ class Reranker:
             return_documents=return_documents
         )
         avg_relevance = sum([doc.relevance_score for doc in response.results])/len(response.results)
-        print(f"Avg Relevance Score: {avg_relevance}")
+        print(f"Avg Relevance Score: {avg_relevance}\n")
         reranked_documents = [documents[doc.index] for doc in response.results]
         return reranked_documents

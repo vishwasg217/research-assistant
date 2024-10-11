@@ -23,7 +23,7 @@ class Document(BaseModel):
 
 class DateRange(BaseModel):
     start_date: str
-    end: str
+    end_date: str
 
 
 arxiv_categories = [
