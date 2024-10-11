@@ -3,9 +3,11 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from vector_database import VectorDB
 from reranker import Reranker
+from pydantic_classes import Query
 from typing import Literal
 import json
-
+from datetime import datetime, timezone
+from weaviate.classes.query import Filter
 
 load_dotenv(".env")
 
@@ -33,6 +35,17 @@ PROMPT_TEMPLATE = """
     ## Response
 """
 
+QUERY_TRANSFORM_PROMPT_TEMPLATE = """ 
+    Your task is to transform a given query into a schema/structure given.
+    This schema will be used to filter articles based on the given query.
+
+    Here is a description of the parameters:
+    - questions: rewrite question such that is more suited for hybrid search(vector search + bm25 search).
+    - authors: Only if a particular author(s) of the Paper is mentioned in the query.
+    - categories: Mention the most suited particular arxiv paper category(s) to the rewritten query.
+    - date_range: Create a date range if there is any mention of time period/date in the query. like a year or month
+"""
+
 
 class Engine:
     def __init__(self, vector_db: VectorDB, reranker: Reranker = None):
@@ -42,11 +55,32 @@ class Engine:
 
     def retrieve(
         self, 
-        question: str, 
+        query: Query,
         top_k: int = 10, 
         search_type: Literal["similarity", "keyword", "hybrid"] = "similarity"
     ):
-        documents = self.vector_db.query(question=question, top_k=top_k, search_type=search_type)
+        start_date = datetime.strptime(query.date_range.start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc) if query.date_range.start_date else None
+        end_date = datetime.strptime(query.date_range.end, "%Y-%m-%d").replace(tzinfo=timezone.utc) if query.date_range.end else None
+        categories = [cat.value for cat in query.categories] if query.categories else None
+
+        filters_list = []
+        if query.authors:
+            filters_list.append(Filter.by_property("authors").equal(query.authors))
+        if query.categories:
+            filters_list.append(Filter.by_property("categories").equal(categories))
+        if start_date:
+            filters_list.append(Filter.by_property("date").greater_than(start_date))
+        if end_date:
+            filters_list.append(Filter.by_property("date").less_than(end_date))
+
+        # Combine all filters using the AND (&) operator, if any filters exist
+        filters = None
+        if filters_list:
+            filters = filters_list[0]
+            for f in filters_list[1:]:
+                filters = filters & f
+
+        documents = self.vector_db.query(question=query.question, filters=filters, top_k=top_k, search_type=search_type)
         
         metric_avg = documents[0].metadata
         for k, v in metric_avg.items():
@@ -55,6 +89,18 @@ class Engine:
             metric_avg[k] /= len(documents)
 
         return documents, metric_avg
+    
+    def query_transform(self, question: str) -> Query:
+        response = self.client.beta.chat.completions.parse(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": QUERY_TRANSFORM_PROMPT_TEMPLATE},
+                {"role": "user", "content": question}
+            ],
+            response_format=Query
+        )
+
+        return response.choices[0].message.parsed
 
     def query(
         self, 
@@ -63,7 +109,11 @@ class Engine:
         max_words: int = 100, 
         rerank_n: int = None,
     ) -> str:
-        documents, metric_avg = self.retrieve(question=question)
+        
+        transformed_query = self.query_transform(question)
+        print(f"Transformed Query: {transformed_query}")
+
+        documents, metric_avg = self.retrieve(query=transformed_query)
         print(f"Metrics: {metric_avg}")
         if rerank_n and self.reranker is not None:
             documents = self.reranker.rerank(question=question, documents=documents, top_n=rerank_n)

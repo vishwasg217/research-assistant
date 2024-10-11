@@ -1,6 +1,7 @@
 from typing import Literal
 import weaviate
 from weaviate.classes.query import MetadataQuery
+from weaviate.collections.classes.filters import _Filters
 import os
 from dotenv import load_dotenv
 from pydantic_classes import Document
@@ -21,6 +22,7 @@ class VectorDB:
     def query(
         self, 
         question: str, 
+        filters: _Filters = None,
         top_k: int = 10, 
         search_type: Literal["similarity", "keyword", "hybrid"] = "similarity", 
         alpha: int = None
@@ -29,6 +31,7 @@ class VectorDB:
         if search_type == "similarity":
             response = self.collection.query.near_text(
                 query=question,
+                filters=filters,
                 return_metadata=MetadataQuery(distance=True, certainty=True),
                 limit=top_k,
                 include_vector=True
@@ -37,6 +40,7 @@ class VectorDB:
         elif search_type == "keyword":
             response = self.collection.query.bm25(
                 query=question,
+                filters=filters,
                 return_metadata=MetadataQuery(score=True, explain_score=True),
                 limit=top_k
             )
@@ -44,6 +48,7 @@ class VectorDB:
         elif search_type == "hybrid":
             response = self.collection.query.hybrid(
                 query=question,
+                filters=filters,
                 # return_metadata=MetadataQuery(score=True, explain_score=True),
                 alpha=alpha,
                 limit=top_k
