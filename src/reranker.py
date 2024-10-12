@@ -1,7 +1,7 @@
 import cohere
 from dotenv import load_dotenv
 import os
-from src.pydantic_classes import Document
+from .pydantic_classes import Document
 
 load_dotenv(".env")
 

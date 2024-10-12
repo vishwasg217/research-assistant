@@ -81,9 +81,13 @@ arxiv_categories = [
 
 ArxivCategories = Enum('ArxivCategories', {category.replace(' ', '_').upper(): category for category in arxiv_categories})
 
-
 class Query(BaseModel):
     question: str
     categories: Optional[list[ArxivCategories]] = None # type: ignore
     authors: Optional[list[str]] = None
     date_range: Optional[DateRange] = None
+
+class EngineResponse(BaseModel):
+    content: str
+    context: list[Document]
+    metadata: dict = None

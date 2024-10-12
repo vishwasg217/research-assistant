@@ -1,9 +1,9 @@
 from textwrap import dedent
 from openai import OpenAI
 from dotenv import load_dotenv
-from vector_database import VectorDB
-from reranker import Reranker
-from pydantic_classes import Query
+from .vector_database import VectorDB
+from .reranker import Reranker
+from .pydantic_classes import Query, EngineResponse
 from typing import Literal
 import json
 from datetime import datetime, timezone
@@ -30,7 +30,7 @@ PROMPT_TEMPLATE = """
     {context}
 
     ## Response Format:
-    {{"response": "provide the response using proper markdown formatting."}}
+    {{"response": "MUST provide the response using proper markdown formatting."}}
 
     ## Response
 """
@@ -113,26 +113,28 @@ class Engine:
         question: str, 
         level: Literal["beginner", "intermediate", "expert"] = "beginner",
         max_words: int = 100, 
+        top_k: int = 10,
         top_n: int = None,
-    ) -> str:
+    ) -> EngineResponse:
         
         transformed_query = self.query_transform(question)
         print(f"\nTransformed Query: {transformed_query}\n")
 
-        documents, metric_avg = self.retrieve(query=transformed_query)
+        documents, metric_avg = self.retrieve(query=transformed_query, top_k=top_k)
         print(f"Metrics: {metric_avg}\n")
         if top_n and self.reranker is not None:
-            documents = self.reranker.rerank(question=question, documents=documents, top_n=top_n)
+            reranked_documents = self.reranker.rerank(question=question, documents=documents, top_n=top_k)
 
+        top_docs = top_n if top_n else top_k
         prompt = dedent(PROMPT_TEMPLATE).format(
             level=level,
             question=question,
             max_words=max_words,
-            context=[{"title": doc.title, "abstract": doc.abstract} for doc in documents]
+            context=[{"title": doc.title, "abstract": doc.abstract} for doc in reranked_documents[:top_docs]],
         )
 
         response = self.client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": "you are an assistant who responds in json format"},
                 {"role": "user", "content": prompt}
@@ -140,14 +142,10 @@ class Engine:
             response_format={"type": "json_object"}
         )
 
-        return json.loads(response.choices[0].message.content)["response"]
-    
-
-
-
-
-
-
-
-        
-        
+        return EngineResponse(
+            content=json.loads(response.choices[0].message.content)["response"],
+            context=documents,
+            metadata={
+                "retrieval_metrics": metric_avg
+            }
+        )

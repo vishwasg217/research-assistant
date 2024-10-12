@@ -1,4 +1,4 @@
-from pydantic_classes import Query, DateRange
+from .pydantic_classes import Query, DateRange
 
 # example
 transformed_query = Query(

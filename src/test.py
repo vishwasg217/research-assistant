@@ -4,7 +4,7 @@ from weaviate.classes.query import MetadataQuery
 from weaviate.collections.classes.filters import _Filters
 import os
 from dotenv import load_dotenv
-from pydantic_classes import Document
+from .pydantic_classes import Document
 
 
 openai_key = os.getenv("OPENAI_API_KEY")
