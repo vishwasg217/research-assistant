@@ -1,8 +1,10 @@
 import streamlit as st
-import pandas as pd
 from src import VectorDB, Reranker, Engine
 
 st.title("Research Assistant")
+
+if 'response' not in st.session_state:
+    st.session_state.response = None
 
 vector_db = VectorDB(collection_name="Paper")
 reranker = Reranker(model="rerank-english-v3.0", rank_fields=['title', 'abstract'])
@@ -12,13 +14,22 @@ query = st.text_input(label="Enter your research query")
 
 if st.button("Search"):
     if query:
-        response = engine.query(question=query, max_words=250, top_n=5)
-    st.markdown(response.content)
+        st.session_state.response = engine.query(
+            question=query, 
+            search_type="hybrid",
+            alpha=0.5,
+            top_n=5,
+            max_words=200
+        )
+    st.markdown(st.session_state.response.content)
     st.subheader("Related Papers")
-    papers_df = pd.DataFrame([doc.model_dump() for doc in response.context])
-    print(papers_df.columns)
-    papers_df = papers_df[["title", "abstract", "authors", "categories", "paper_url"]]
-    st.dataframe(
-        data = papers_df,
-    )
+
+    for paper in st.session_state.response.context:
+        with st.container(border=True):
+            title = paper.title.replace('\n', '')
+            st.markdown(f"### [{title}]({paper.paper_url})\n")
+            col1, col2 = st.columns(2)
+            col1.markdown(f"**Authors**\n\n{', '.join(paper.authors)}")
+            col2.markdown(f"**Categories**\n\n{', '.join(paper.categories)}")
+            st.markdown(f"\n##### Abstract:\n{paper.abstract}")
 

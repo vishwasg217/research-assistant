@@ -57,7 +57,8 @@ class Engine:
         self, 
         query: Query,
         top_k: int = 10, 
-        search_type: Literal["similarity", "keyword", "hybrid"] = "similarity"
+        search_type: Literal["similarity", "keyword", "hybrid"] = "similarity",
+        alpha: int = None
     ):
         start_date = None
         end_date = None
@@ -86,7 +87,13 @@ class Engine:
             for f in filters_list[1:]:
                 filters = filters & f
 
-        documents = self.vector_db.query(question=query.question, filters=filters, top_k=top_k, search_type=search_type)
+        documents = self.vector_db.query(
+            question=query.question, 
+            filters=filters, 
+            top_k=top_k, 
+            search_type=search_type, 
+            alpha=alpha
+        )
         
         metric_avg = documents[0].metadata
         for k, v in metric_avg.items():
@@ -111,16 +118,25 @@ class Engine:
     def query(
         self, 
         question: str, 
-        level: Literal["beginner", "intermediate", "expert"] = "beginner",
-        max_words: int = 100, 
+        search_type: Literal["similarity", "keyword", "hybrid"] = "similarity",
+        alpha: int = None,
         top_k: int = 10,
         top_n: int = None,
+        level: Literal["beginner", "intermediate", "expert"] = "beginner",
+        max_words: int = 100, 
     ) -> EngineResponse:
         
         transformed_query = self.query_transform(question)
         print(f"\nTransformed Query: {transformed_query}\n")
 
-        documents, metric_avg = self.retrieve(query=transformed_query, top_k=top_k)
+        if search_type == "hybrid" and alpha is None:
+            raise ValueError("Alpha value must be provided for hybrid search")
+        documents, metric_avg = self.retrieve(
+            query=transformed_query, 
+            top_k=top_k,
+            search_type=search_type,
+            alpha=alpha
+        )
         print(f"Metrics: {metric_avg}\n")
         if top_n and self.reranker is not None:
             reranked_documents = self.reranker.rerank(question=question, documents=documents, top_n=top_k)
