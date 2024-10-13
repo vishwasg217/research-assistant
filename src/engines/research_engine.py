@@ -1,9 +1,9 @@
 from textwrap import dedent
 from openai import OpenAI
 from dotenv import load_dotenv
-from .vector_database import VectorDB
-from .reranker import Reranker
-from .pydantic_classes import Query, EngineResponse
+from ..vector_database import VectorDB
+from ..reranker import Reranker
+from ..pydantic_classes import Query, EngineResponse
 from typing import Literal
 import json
 from datetime import datetime, timezone
@@ -47,7 +47,7 @@ QUERY_TRANSFORM_PROMPT_TEMPLATE = """
 """
 
 
-class Engine:
+class ResearchEngine:
     def __init__(self, vector_db: VectorDB, reranker: Reranker = None):
         self.client = OpenAI() 
         self.vector_db = vector_db

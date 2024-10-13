@@ -17,6 +17,8 @@ ipykernel = "^6.29.5"
 weaviate-client = "^4.8.1"
 streamlit = "^1.39.0"
 watchdog = "^5.0.3"
+requests = "^2.32.3"
+html2text = "^2024.2.26"
 
 [tool.pytest.ini_options]
 pythonpath = "src"
