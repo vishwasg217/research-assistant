@@ -150,7 +150,7 @@ class ResearchEngine:
         )
 
         response = self.client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "you are an assistant who responds in json format"},
                 {"role": "user", "content": prompt}

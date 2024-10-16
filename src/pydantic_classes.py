@@ -91,3 +91,8 @@ class EngineResponse(BaseModel):
     content: str
     context: list[Document]
     metadata: dict = None
+
+class Paper(BaseModel):
+    title: str
+    abstract: str
+    chunks_content: list[dict]
