@@ -97,7 +97,7 @@ class SummaryEngine:
 
 
 
-    def summarize(self, paper: Paper, columns, max_words=100):
+    def summarize(self, paper: Paper, columns, max_words=60):
         """
             1. map section(s) to a column
             2. summarise the content as per each column. 
@@ -115,6 +115,8 @@ class SummaryEngine:
                             sections.append(value)
         section_to_column = self.map_sections_to_columns(sections)
 
+        summaries = {}
+
         for column, sections in section_to_column.items():
             if column in columns:
                 chunks = []
@@ -123,6 +125,16 @@ class SummaryEngine:
                         if value in sections:
                             chunks.append(chunk)
                             break
+
+                summary = self.generate_summary(
+                    chunks=chunks, 
+                    column_name=column, 
+                    paper_title=paper.title, 
+                    max_words=max_words
+                )
+                summaries[column] = summary
+
+        return summaries
 
             
 
