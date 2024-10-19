@@ -96,3 +96,8 @@ class Paper(BaseModel):
     title: str
     abstract: str
     chunks_content: list[dict]
+
+class Summary(BaseModel):
+    paper_title: str
+    summary: str
+    column_name: str

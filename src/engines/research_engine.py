@@ -110,7 +110,8 @@ class ResearchEngine:
                 {"role": "system", "content": QUERY_TRANSFORM_PROMPT_TEMPLATE},
                 {"role": "user", "content": question}
             ],
-            response_format=Query
+            response_format=Query,
+            temperature=0
         )
 
         return response.choices[0].message.parsed

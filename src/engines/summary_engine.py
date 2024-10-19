@@ -3,7 +3,7 @@ from textwrap import dedent
 from openai import OpenAI
 from dotenv import load_dotenv
 
-from ..pydantic_classes import Paper
+from ..pydantic_classes import Paper, Summary
 
 """
 main sections of a paper:
@@ -20,6 +20,7 @@ load_dotenv(".env")
 class SummaryEngine:
     def __init__(self):
         self.client = OpenAI() 
+        self.sections_to_column = None
 
     def map_sections_to_columns(self, sections):
 
@@ -60,7 +61,7 @@ class SummaryEngine:
         )
         return json.loads(response.choices[0].message.content)
     
-    def generate_summary(self, chunks, column_name, paper_title, max_words):
+    def generate_summary(self, chunks: list, column_name: str, paper_title: str, max_words: int):
 
         PROMPT_TEMPLATE = """ 
             Your task is to generate a summary based on the given content of the paper and the topic name based on which the summary should be generated:
@@ -77,7 +78,7 @@ class SummaryEngine:
 
             Response format:
             ## Response Format:
-            {{"response": "MUST provide the response using proper markdown formatting."}}
+            {{"response": ""}}
 
             Response:
         """
@@ -93,11 +94,10 @@ class SummaryEngine:
             response_format={"type": "json_object"}
         )
 
-        return json.loads(response.choices[0].message.content)
+        return json.loads(response.choices[0].message.content)['response']
 
 
-
-    def summarize(self, paper: Paper, columns, max_words=60):
+    def summarize(self, paper: Paper, column: str, max_words: int = 60):
         """
             1. map section(s) to a column
             2. summarise the content as per each column. 
@@ -112,30 +112,49 @@ class SummaryEngine:
                 for key, value in chunk['metadata'].items():
                     if int(key.split()[1]) == biggest_header:
                         if value not in sections:
-                            sections.append(value)
-        section_to_column = self.map_sections_to_columns(sections)
+                            sections.append(value.lower().strip())
+        
+        if "abstract" in sections:
+            sections.remove("abstract")
 
-        summaries = {}
+        self.sections_to_column = self.map_sections_to_columns(sections)
 
-        for column, sections in section_to_column.items():
-            if column in columns:
-                chunks = []
-                for chunk in paper.chunks_content:
-                    for key, value in chunk['metadata'].items():
-                        if value in sections:
-                            chunks.append(chunk)
-                            break
+        if column in self.sections_to_column:
+            sections = self.sections_to_column[column]  
+        elif column == "abstract":
+            summary = self.generate_summary(
+                chunks=[{"page_content": paper.abstract}],
+                column_name="abstract",
+                paper_title=paper.title,
+                max_words=max_words
+            )
+            return Summary(
+                paper_title=paper.title,
+                summary=summary,
+                column_name=column
+            ) 
+        else: 
+            raise ValueError(f"Column name: {column} not found in the sections to column mapping.")
+        
+        chunks = []
+        for chunk in paper.chunks_content:
+            for key, value in chunk['metadata'].items():
+                if value in sections:
+                    chunks.append(chunk)
+                    break
 
-                summary = self.generate_summary(
-                    chunks=chunks, 
-                    column_name=column, 
-                    paper_title=paper.title, 
-                    max_words=max_words
-                )
-                summaries[column] = summary
-
-        return summaries
-
+        summary = self.generate_summary(
+            chunks=chunks, 
+            column_name=column, 
+            paper_title=paper.title, 
+            max_words=max_words
+        )
+            
+        return Summary(
+            paper_title=paper.title,
+            summary=summary,
+            column_name=column
+        )
             
 
 
