@@ -62,7 +62,7 @@ if st.session_state.response:
                 for column in columns:
                     st.session_state.summaries[paper.paper_id][column] = summarize_paper(paper, column).summary
 
-            if st.session_state.summaries[paper.paper_id]:     
+            if paper.paper_id in st.session_state.summaries:     
                 for column, summary in st.session_state.summaries[paper.paper_id].items():
                     st.markdown(f"\n##### {column.capitalize()}:\n{summary}")
 
